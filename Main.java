@@ -25,45 +25,36 @@ public class Main {
             int weekly = Integer.parseInt(args[3]);
             int daily = Integer.parseInt(args[4]);
 
-        DateTimeFormatter form = DateTimeFormatter.ofPattern("dd.LLL.yy");
+            DateTimeFormatter form = DateTimeFormatter.ofPattern("dd.LLL.yy");
 
-        ArrayList<String> monthlyBackups = new ArrayList<>();
-        ArrayList<String> weeklyBackups = new ArrayList<>();
-        ArrayList<String> dailyBackups = new ArrayList<>();
+            ArrayList<String> monthlyBackups = new ArrayList<>();
+            ArrayList<String> weeklyBackups = new ArrayList<>();
+            ArrayList<String> dailyBackups = new ArrayList<>();
 
-        int monthIndex = 0;
-        int weekIndex = 0;
-        int dayIndex = 0;
+            for(LocalDate date = start;
+                date.isBefore(end.plusDays(1));
+                date = date.plusDays(1)) {
 
-        for(LocalDate date = start;
-            date.isBefore(end.plusDays(1));
-            date = date.plusDays(1)) {
-            if(date.getDayOfMonth() == 1) {
-                monthIndex++; // 1st day of month
-                if(monthIndex % monthly == 0) monthlyBackups.clear(); // clear backups
-                monthlyBackups.add(date.format(form)); // do backup
-            } else if (date.getDayOfWeek() == DayOfWeek.MONDAY) {
-                weekIndex++;
-                if(weekIndex % weekly == 0) weeklyBackups.clear();
-                weeklyBackups.add(date.format(form));
-            } else {
-                dayIndex++;
-                if(dayIndex % daily == 0) dailyBackups.clear();
-                dailyBackups.add(date.format(form));
+                // Do specific Backup
+                if(date.getDayOfMonth() == 1) {
+                    monthlyBackups.add(date.format(form)); // append Backup to list
+                } else if (date.getDayOfWeek() == DayOfWeek.MONDAY) {
+                    weeklyBackups.add(date.format(form));
+                } else {
+                    dailyBackups.add(date.format(form));
+                }
+
+                applyRetentionPolicies(dailyBackups, weeklyBackups, monthlyBackups, date, daily, weekly, monthly, form);
             }
-        }
         System.out.println("#### MONTHLY BACKUPS ####");
-        System.out.println("Index:" + monthIndex);
         System.out.println("Days: " + monthlyBackups);
         System.out.println("Total: " + monthlyBackups.size());
 
         System.out.println("\n #### WEEKLY BACKUPS ####");
-        System.out.println("Index:" + weekIndex);
         System.out.println("Days: " + weeklyBackups);
         System.out.println("Total: " + weeklyBackups.size());
 
         System.out.println("\n #### DAILY BACKUPS ####");
-        System.out.println("Index:" + dayIndex);
         System.out.println("Days: " + dailyBackups);
         System.out.println("Total: " + dailyBackups.size());
 
@@ -71,5 +62,23 @@ public class Main {
         } catch (NumberFormatException | DateTimeException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static void applyRetentionPolicies(
+            ArrayList<String> dailyBackups,
+            ArrayList<String> weeklyBackups,
+            ArrayList<String> monthlyBackups,
+            LocalDate currentDate, int dailyRetention, int weeklyRetention, int monthlyRetention, DateTimeFormatter form) {
+        // Daily backups retention
+        LocalDate dailyRetentionThreshold = currentDate.minusDays(dailyRetention);
+        dailyBackups.removeIf(backup -> LocalDate.parse(backup, form).isBefore(dailyRetentionThreshold));
+
+        // Weekly backups retention
+        LocalDate weeklyRetentionThreshold = currentDate.minusWeeks(weeklyRetention);
+        weeklyBackups.removeIf(backup -> LocalDate.parse(backup, form).isBefore(weeklyRetentionThreshold));
+
+        // Monthly backups retention
+        LocalDate monthlyRetentionThreshold = currentDate.minusMonths(monthlyRetention);
+        monthlyBackups.removeIf(backup -> LocalDate.parse(backup, form).isBefore(monthlyRetentionThreshold));
     }
 }
